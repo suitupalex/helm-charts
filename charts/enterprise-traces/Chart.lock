@@ -1,0 +1,9 @@
+dependencies:
+- name: tempo-distributed
+  repository: https://grafana.github.io/helm-charts
+  version: 0.13.0
+- name: minio
+  repository: https://helm.min.io/
+  version: 8.0.9
+digest: sha256:8178b5f536abfb4f1071c8b5330abd7d9dfec4d843f4f40e7769d0d40bc29fe4
+generated: "2022-01-17T21:50:08.2225065-06:00"
