@@ -1,0 +1,117 @@
+{{ if .Values.tokengen.enable }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "enterprise-traces.tokengenFullname" . }}
+  labels:
+    {{- include "enterprise-traces.tokengenLabels" . | nindent 4 }}
+    {{- with .Values.tokengen.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    {{- with .Values.tokengen.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    "helm.sh/hook": post-install
+spec:
+  backoffLimit: 6
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        {{- include "enterprise-traces.tokengenSelectorLabels" . | nindent 8 }}
+        {{- with .Values.tokengen.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- with .Values.tokengen.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- if .Values.tokengen.priorityClassName }}
+      priorityClassName: {{ .Values.tokengen.priorityClassName }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.tokengen.securityContext | nindent 8 }}
+      {{- if .Values.image.pullSecrets }}
+      imagePullSecrets:
+      {{- range .Values.image.pullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
+      initContainers:
+        - name: enterprise-traces
+          image: {{ template "enterprise-traces.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - -config.file=/etc/tempo/config/config.yaml
+            - -target=tokengen
+            {{- if .Values.minio.enabled }}
+            - -admin.client.backend-type=s3
+            - -admin.client.s3.endpoint={{ template "enterprise-traces.minio" . }}
+            - -admin.client.s3.bucket-name=enterprise-traces-admin
+            - -admin.client.s3.access-key-id={{ .Values.minio.accessKey }}
+            - -admin.client.s3.secret-access-key={{ .Values.minio.secretKey }}
+            - -admin.client.s3.insecure=true
+            {{- end }}
+            - -tokengen.token-file=/shared/admin-token
+            {{- range $key, $value := .Values.tokengen.extraArgs }}
+            - "-{{ $key }}={{ $value }}"
+            {{- end }}
+          volumeMounts:
+            {{- if .Values.tokengen.extraVolumeMounts }}
+              {{ toYaml .Values.tokengen.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+            - name: shared
+              mountPath: /shared
+            - name: config
+              mountPath: /etc/tempo/config
+            - name: license
+              mountPath: /etc/enterprise-traces/license
+          env:
+            {{- if .Values.tokengen.env }}
+              {{ toYaml .Values.tokengen.env | nindent 12 }}
+            {{- end }}
+      containers:
+        - name: create-secret
+          image: bitnami/kubectl
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/bash
+            - -euc
+            - kubectl create secret generic gel-admin-token --from-file=token=/shared/admin-token --from-literal=grafana-token="$(base64 <(echo :$(cat /shared/admin-token)))"
+          volumeMounts:
+            {{- if .Values.tokengen.extraVolumeMounts }}
+              {{ toYaml .Values.tokengen.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+            - name: shared
+              mountPath: /shared
+            - name: config
+              mountPath: /etc/tempo/config
+            - name: license
+              mountPath: /etc/enterprise-traces/license
+      restartPolicy: OnFailure
+      serviceAccount: {{ template "enterprise-traces.tokengenFullname" . }}
+      serviceAccountName: {{ template "enterprise-traces.tokengenFullname" . }}
+      volumes:
+        - name: config
+          secret:
+          {{- if .Values.useExternalConfig }}
+            secretName: {{ .Values.externalConfigName }}
+          {{- else }}
+            secretName: enterprise-traces-config
+          {{- end }}
+        - name: license
+          secret:
+          {{- if .Values.useExternalLicense }}
+            secretName: {{ .Values.externalLicenseName }}
+          {{- else }}
+            secretName: enterprise-traces-license
+          {{- end }}
+        - name: shared
+          emptyDir: {}
+        {{- if .Values.tokengen.extraVolumes }}
+        {{ toYaml .Values.tokengen.extraVolumes | nindent 8 }}
+        {{- end }}
+{{- end }}

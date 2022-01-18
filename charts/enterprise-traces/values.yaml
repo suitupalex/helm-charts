@@ -20,6 +20,7 @@ externalLicenseVersion: "0"
 license:
   contents: "NOTAVALIDLICENSE"
 
+# TODO: Needs to fold into tempo-distributed
 storage:
   trace:
     backend: s3
@@ -30,6 +31,48 @@ storage:
       access_key: enterprise-traces
       secret_key: supersecret
 
+# TODO: Needs to fold into tempo-distributed
+compactor:
+  config:
+    compaction:
+      block_retention: 48h
+
+# TODO: Needs to fold into tempo-distributed
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+# TODO: Needs to fold into tempo-distributed
+search:
+  enabled: false
+
+# TODO: Needs to fold into tempo-distributed
+traces:
+  jaeger:
+    grpc: false
+    thriftBinary: false
+    thriftCompact: false
+    thriftHttp: false
+  zipkin: false
+  otlp:
+    http: false
+    grpc: false
+  opencensus: false
+  kafka: {}
+
+# TODO: Needs to fold into tempo-distributed
+querier:
+  config:
+    frontend_worker:
+      grpc_client_config: {}
+
+# TODO: Needs to fold into tempo-distributed
+queryFrontend:
+  config: |
+    backend: 127.0.0.1:3100
+
+# TODO: Replace all non enterprise .Values to:
+# `index .Values "tempo-distributed" key1 key2 ...`
 config: |
   auth:
     type: enterprise
@@ -38,11 +81,10 @@ config: |
   license:
     path: /etc/enterprise-traces/license/license.jwt
 
-  cluster_name: {{ .Release.Name }}
+  cluster_name: {{.Release.Name}}
 
   server:
-    http_listen_port: 3100
-    grpc_listen_port: 9095
+    {{toYaml .Values.server | nindent 4}}
 
   admin_client:
     storage:
@@ -55,10 +97,10 @@ config: |
         secret_key: supersecret
 
   multitenancy_enabled: false
-  search_enabled: {{ .Values.search.enabled }}
+  search_enabled: {{.Values.search.enabled}}
   compactor:
     compaction:
-      block_retention: {{ .Values.compactor.config.compaction.block_retention }}
+      block_retention: {{.Values.compactor.config.compaction.block_retention}}
     ring:
       kvstore:
         store: memberlist
