@@ -4,7 +4,7 @@ apiVersion: v2
 name: enterprise-traces
 type: application
 version: 1.0.0
-appVersion: 1.0.0
+appVersion: 1.1.0
 kubeVersion: ^1.10.0-0
 engine: gotpl
 home: https://grafana.com/products/enterprise/traces/
