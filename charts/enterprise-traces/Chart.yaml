@@ -10,7 +10,7 @@ engine: gotpl
 home: https://grafana.com/products/enterprise/traces/
 dependencies:
   - name: tempo-distributed
-    version: ^0.13.0
+    version: ^0.15.0
     repository: https://grafana.github.io/helm-charts
   - name: minio
     alias: minio
