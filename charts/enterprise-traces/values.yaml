@@ -231,7 +231,7 @@ adminApi: &ms-defaults
     httpGet:
       path: /ready
       port: http-metrics
-      scheme: http
+      scheme: HTTP
     initialDelaySeconds: 45
 
   readinessProbe: *probe
