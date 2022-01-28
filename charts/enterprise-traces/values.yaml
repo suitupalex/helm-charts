@@ -271,9 +271,13 @@ tempo-distributed:
       - name: license
         secret:
           secretName: enterprise-traces-license
+      - name: storage
+        emptyDir: {}
     extraVolumeMounts:
       - name: license
         mountPath: /etc/enterprise-traces/license
+      - name: storage
+        mountPath: /var/tempo
 
   distributor: *extras
 
