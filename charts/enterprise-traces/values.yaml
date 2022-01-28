@@ -71,6 +71,9 @@ queryFrontend:
   config: |
     backend: 127.0.0.1:3100
 
+overrides: |
+  overrides: {}
+
 # TODO: Replace all non enterprise .Values to:
 # `index .Values "tempo-distributed" key1 key2 ...`
 config: |
