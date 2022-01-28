@@ -218,7 +218,6 @@ adminApi: &ms-defaults
     runAsNonRoot: true
     runAsGroup: 10001
     runAsUser: 10001
-    fsGroup: 10001
 
   strategy:
     type: RollingUpdate
@@ -264,7 +263,6 @@ tokengen:
     runAsNonRoot: true
     runAsGroup: 10001
     runAsUser: 10001
-    fsGroup: 10001
 
 tempo-distributed:
   nameOverride: enterprise-traces
