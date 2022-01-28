@@ -173,10 +173,6 @@ config: |
       - {{ include "tempo.fullname" . }}-gossip-ring
   overrides:
     per_tenant_override_config: /conf/overrides.yaml
-  server:
-    http_listen_port: {{ .Values.server.httpListenPort }}
-    log_level: {{ .Values.server.logLevel }}
-    log_format: {{ .Values.server.logFormat }}
   storage:
     trace:
       backend: {{.Values.storage.trace.backend}}
