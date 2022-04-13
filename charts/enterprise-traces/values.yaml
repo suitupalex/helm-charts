@@ -213,10 +213,10 @@ adminApi: &ms-defaults
     labels: {}
     annotations: {}
 
-  securityContext:
-    runAsNonRoot: true
-    runAsGroup: 10001
-    runAsUser: 10001
+  securityContext: {}
+    # runAsNonRoot: true
+    # runAsGroup: 10001
+    # runAsUser: 10001
 
   strategy:
     type: RollingUpdate
@@ -258,10 +258,7 @@ tokengen:
   annotations: {}
   extraVolumes: []
   extraVolumeMounts: []
-  securityContext:
-    runAsNonRoot: true
-    runAsGroup: 10001
-    runAsUser: 10001
+  securityContext: {}
 
 tempo-distributed:
   nameOverride: enterprise-traces

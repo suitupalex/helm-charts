@@ -119,7 +119,9 @@ spec:
             {{- toYaml .Values.adminApi.resources | nindent 12 }}
           securityContext:
             readOnlyRootFilesystem: true
-            {{- toYaml .Values.adminApi.securityContext | nindent 12 }}
+            {{- if .Values.adminApi.securityContext }}
+              {{- toYaml .Values.adminApi.securityContext | nindent 12 }}
+            {{- end}}
           env:
             {{- if .Values.adminApi.env }}
             {{ toYaml .Values.adminApi.env | nindent 12 }}
