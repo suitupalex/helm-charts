@@ -1,0 +1,24 @@
+{{/*
+adminApi fullname
+*/}}
+{{- define "enterprise-traces.adminApiFullname" -}}
+{{ include "enterprise-traces.fullname" . }}-admin-api
+{{- end }}
+
+{{/*
+adminApi common labels
+*/}}
+{{- define "enterprise-traces.adminApiLabels" -}}
+{{ include "enterprise-traces.labels" . }}
+app.kubernetes.io/component: admin-api
+target: admin-api
+{{- end }}
+
+{{/*
+adminApi selector labels
+*/}}
+{{- define "enterprise-traces.adminApiSelectorLabels" -}}
+{{ include "enterprise-traces.selectorLabels" . }}
+app.kubernetes.io/component: admin-api
+target: admin-api
+{{- end }}

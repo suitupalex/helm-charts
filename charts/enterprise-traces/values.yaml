@@ -1,0 +1,311 @@
+---
+
+image: &image
+  registry: docker.io
+  repository: grafana/enterprise-traces
+  tag: v1.2.1
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+
+useExternalConfig: false
+externalConfigName: enterprise-traces-config
+externalConfigVersion: "0"
+
+useExternalLicense: false
+externalLicenseName: enterprise-traces-license
+externalLicenseVersion: "0"
+
+license:
+  contents: "NOTAVALIDLICENSE"
+
+# TODO: Needs to fold into tempo-distributed
+storage:
+  trace:
+    backend: s3
+    s3:
+      endpoint: |
+        {{ include "enterprise-traces.minio" . }}
+      bucket: enterprise-traces-blocks
+      access_key: enterprise-traces
+      secret_key: supersecret
+
+# TODO: Needs to fold into tempo-distributed
+compactor:
+  config:
+    compaction:
+      block_retention: 48h
+
+# TODO: Needs to fold into tempo-distributed
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+# TODO: Needs to fold into tempo-distributed
+search:
+  enabled: false
+
+# TODO: Needs to fold into tempo-distributed
+traces:
+  jaeger:
+    grpc: false
+    thriftBinary: false
+    thriftCompact: false
+    thriftHttp: false
+  zipkin: false
+  otlp:
+    http: false
+    grpc: false
+  opencensus: false
+  kafka: {}
+
+# TODO: Needs to fold into tempo-distributed
+querier:
+  config:
+    frontend_worker:
+      grpc_client_config: {}
+
+# TODO: Needs to fold into tempo-distributed
+queryFrontend:
+  config: |
+    backend: 127.0.0.1:3100
+
+overrides: |
+  overrides: {}
+
+# TODO: Replace all non enterprise .Values to:
+# `index .Values "tempo-distributed" key1 key2 ...`
+config: |
+  auth:
+    type: enterprise
+  auth_enabled: true
+
+  license:
+    path: /etc/enterprise-traces/license/license.jwt
+
+  cluster_name: {{.Release.Name}}
+
+  server:
+    {{toYaml .Values.server | nindent 4}}
+
+  admin_client:
+    storage:
+      type: s3
+      s3:
+        endpoint: |
+          {{ include "enterprise-traces.minio" . }}
+        bucket: enterprise-traces-admin
+        access_key: enterprise-traces
+        secret_key: supersecret
+
+  multitenancy_enabled: false
+  search_enabled: {{.Values.search.enabled}}
+  compactor:
+    compaction:
+      block_retention: {{.Values.compactor.config.compaction.block_retention}}
+    ring:
+      kvstore:
+        store: memberlist
+  distributor:
+    ring:
+      kvstore:
+        store: memberlist
+    receivers:
+      {{- if  or (.Values.traces.jaeger.thriftCompact) (.Values.traces.jaeger.thriftBinary) (.Values.traces.jaeger.thriftHttp) (.Values.traces.jaeger.grpc) }}
+      jaeger:
+        protocols:
+          {{- if .Values.traces.jaeger.thriftCompact }}
+          thrift_compact:
+            endpoint: 0.0.0.0:6831
+          {{- end }}
+          {{- if .Values.traces.jaeger.thriftBinary }}
+          thrift_binary:
+            endpoint: 0.0.0.0:6832
+          {{- end }}
+          {{- if .Values.traces.jaeger.thriftHttp }}
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+          {{- end }}
+          {{- if .Values.traces.jaeger.grpc }}
+          grpc:
+            endpoint: 0.0.0.0:14250
+          {{- end }}
+      {{- end }}
+      {{- if .Values.traces.zipkin}}
+      zipkin:
+        endpoint: 0.0.0.0:9411
+      {{- end }}
+      {{- if or (.Values.traces.otlp.http) (.Values.traces.otlp.grpc) }}
+      otlp:
+        protocols:
+          {{- if .Values.traces.otlp.http }}
+          http:
+            endpoint: 0.0.0.0:55681
+          {{- end }}
+          {{- if .Values.traces.otlp.grpc }}
+          grpc:
+            endpoint: 0.0.0.0:4317
+          {{- end }}
+      {{- end }}
+      {{- if .Values.traces.opencensus }}
+      opencensus:
+        endpoint: 0.0.0.0:55678
+      {{- end }}
+      {{- if .Values.traces.kafka }}
+      kafka:
+        {{- toYaml .Values.traces.kafka | nindent 6 }}
+      {{- end }}
+  querier:
+    frontend_worker:
+      frontend_address: {{ include "tempo.queryFrontendFullname" . }}-discovery:9095
+      {{- if .Values.querier.config.frontend_worker.grpc_client_config }}
+      grpc_client_config:
+        {{- toYaml .Values.querier.config.frontend_worker.grpc_client_config | nindent 6 }}
+      {{- end }}
+  ingester:
+    lifecycler:
+      ring:
+        replication_factor: 1
+        kvstore:
+          store: memberlist
+      tokens_file_path: /var/tempo/tokens.json
+  memberlist:
+    abort_if_cluster_join_fails: false
+    join_members:
+      - {{ include "tempo.fullname" . }}-gossip-ring
+  overrides:
+    per_tenant_override_config: /conf/overrides.yaml
+  storage:
+    trace:
+      backend: {{.Values.storage.trace.backend}}
+      {{- if eq .Values.storage.trace.backend "gcs"}}
+      gcs:
+        {{- toYaml .Values.storage.trace.gcs | nindent 6}}
+      {{- end}}
+      {{- if eq .Values.storage.trace.backend "s3"}}
+      s3:
+        {{- toYaml .Values.storage.trace.s3 | nindent 6}}
+      {{- end}}
+      {{- if eq .Values.storage.trace.backend "azure"}}
+      azure:
+        {{- toYaml .Values.storage.trace.azure | nindent 6}}
+      {{- end}}
+      blocklist_poll: 5m
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+      cache: memcached
+      memcached:
+        consistent_hash: true
+        host: {{ include "tempo.fullname" . }}-memcached
+        service: memcached-client
+        timeout: 500ms
+
+adminApi: &ms-defaults
+  replicas: 1
+  extraArgs: {}
+  labels: {}
+  annotations: {}
+
+  service:
+    labels: {}
+    annotations: {}
+
+  securityContext: {}
+    # runAsNonRoot: true
+    # runAsGroup: 10001
+    # runAsUser: 10001
+
+  strategy:
+    type: RollingUpdate
+
+  env: []
+
+  persistence:
+    subPath:
+
+  livenessProbe: &probe
+    httpGet:
+      path: /ready
+      port: http-metrics
+      scheme: HTTP
+    initialDelaySeconds: 45
+
+  readinessProbe: *probe
+
+  resources: {}
+
+  initContainers: []
+  extraContainers: []
+
+  extraVolumes: []
+  extraVolumeMounts: []
+
+  affinity: {}
+  nodeSelector: {}
+  tolerations: []
+  terminationGracePeriodSeconds: 60
+
+gateway: *ms-defaults
+
+tokengen:
+  enable: true
+  extraArgs: {}
+  env: []
+  labels: {}
+  annotations: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  securityContext: {}
+
+tempo-distributed:
+  nameOverride: enterprise-traces
+
+  gateway:
+    enabled: false
+
+  ingester: &extras
+    extraVolumes:
+      - name: license
+        secret:
+          secretName: enterprise-traces-license
+      - name: storage
+        emptyDir: {}
+    extraVolumeMounts:
+      - name: license
+        mountPath: /etc/enterprise-traces/license
+      - name: storage
+        mountPath: /var/tempo
+
+  distributor: *extras
+
+  querier: *extras
+
+  queryFrontend: *extras
+
+  compactor: *extras
+
+  tempo:
+    config: null
+    existingSecretForConfig: enterprise-traces-config
+    image: *image
+
+minio:
+  enabled: true
+  accessKey: enterprise-traces
+  secretKey: supersecret
+  buckets:
+    - name: enterprise-traces-blocks
+      policy: none
+      purge: false
+    - name: enterprise-traces-admin
+      policy: none
+      purge: false
+  persistence:
+    size: 128Mi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi

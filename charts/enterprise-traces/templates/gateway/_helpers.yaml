@@ -1,0 +1,24 @@
+{{/*
+gateway fullname
+*/}}
+{{- define "enterprise-traces.gatewayFullname" -}}
+{{ include "enterprise-traces.fullname" . }}-gateway
+{{- end }}
+
+{{/*
+gateway common labels
+*/}}
+{{- define "enterprise-traces.gatewayLabels" -}}
+{{ include "enterprise-traces.labels" . }}
+app.kubernetes.io/component: gateway
+target: gateway
+{{- end }}
+
+{{/*
+gateway selector labels
+*/}}
+{{- define "enterprise-traces.gatewaySelectorLabels" -}}
+{{ include "enterprise-traces.selectorLabels" . }}
+app.kubernetes.io/component: gateway
+target: gateway
+{{- end }}
