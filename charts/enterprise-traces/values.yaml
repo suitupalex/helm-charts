@@ -20,37 +20,29 @@ externalLicenseVersion: "0"
 license:
   contents: "NOTAVALIDLICENSE"
 
-# TODO: Needs to fold into tempo-distributed
 storage: &storage
   trace:
     backend: s3
     s3:
-      #endpoint: http://lab-get-minio.lab-get.svc:9000
+      # CHANGE lab-get TO YOUR NAMESPACE IN THE LINE BELOW
       endpoint: lab-get-minio.lab-get.svc:9000
-      #bucket_name: enterprise-traces-admin
       bucket: enterprise-traces-admin
-      #access_key_id: enterprise-traces
       access_key: enterprise-traces
-      #secret_access_key: supersecret
       secret_key: supersecret
       insecure: true
 
-# TODO: Needs to fold into tempo-distributed
 compactor:
   config:
     compaction:
       block_retention: 48h
 
-# TODO: Needs to fold into tempo-distributed
 server: &server
   http_listen_port: 3100
   grpc_listen_port: 9095
 
-# TODO: Needs to fold into tempo-distributed
 search:
   enabled: false
 
-# TODO: Needs to fold into tempo-distributed
 traces:
   jaeger:
     grpc: false
@@ -64,13 +56,11 @@ traces:
   opencensus: false
   kafka: {}
 
-# TODO: Needs to fold into tempo-distributed
 querier:
   config:
     frontend_worker:
       grpc_client_config: {}
 
-# TODO: Needs to fold into tempo-distributed
 queryFrontend:
   config: |
     backend: 127.0.0.1:3100
