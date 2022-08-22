@@ -3,7 +3,7 @@
 image: &image
   registry: docker.io
   repository: grafana/enterprise-traces
-  tag: v1.2.1
+  tag: v1.3.0
   pullPolicy: IfNotPresent
 
 serviceAccount:
@@ -20,33 +20,29 @@ externalLicenseVersion: "0"
 license:
   contents: "NOTAVALIDLICENSE"
 
-# TODO: Needs to fold into tempo-distributed
-storage:
+storage: &storage
   trace:
     backend: s3
     s3:
-      endpoint: |
-        {{ include "enterprise-traces.minio" . }}
-      bucket: enterprise-traces-blocks
+      # CHANGE lab-get TO YOUR NAMESPACE IN THE LINE BELOW
+      endpoint: lab-get-minio.lab-get.svc:9000
+      bucket: enterprise-traces-data
       access_key: enterprise-traces
       secret_key: supersecret
+      insecure: true
 
-# TODO: Needs to fold into tempo-distributed
 compactor:
   config:
     compaction:
       block_retention: 48h
 
-# TODO: Needs to fold into tempo-distributed
-server:
+server: &server
   http_listen_port: 3100
   grpc_listen_port: 9095
 
-# TODO: Needs to fold into tempo-distributed
 search:
   enabled: false
 
-# TODO: Needs to fold into tempo-distributed
 traces:
   jaeger:
     grpc: false
@@ -60,46 +56,42 @@ traces:
   opencensus: false
   kafka: {}
 
-# TODO: Needs to fold into tempo-distributed
 querier:
   config:
     frontend_worker:
       grpc_client_config: {}
 
-# TODO: Needs to fold into tempo-distributed
 queryFrontend:
   config: |
     backend: 127.0.0.1:3100
-
 overrides: |
   overrides: {}
 
 # TODO: Replace all non enterprise .Values to:
 # `index .Values "tempo-distributed" key1 key2 ...`
-config: |
+config: &config |
   auth:
     type: enterprise
   auth_enabled: true
-
   license:
     path: /etc/enterprise-traces/license/license.jwt
-
   cluster_name: {{.Release.Name}}
-
   server:
-    {{toYaml .Values.server | nindent 4}}
-
+    http_listen_port: {{ .Values.server.http_listen_port }}
+    grpc_listen_port: {{ .Values.server.grpc_listen_port }}
   admin_client:
     storage:
       type: s3
       s3:
-        endpoint: |
-          {{ include "enterprise-traces.minio" . }}
-        bucket: enterprise-traces-admin
-        access_key: enterprise-traces
-        secret_key: supersecret
-
-  multitenancy_enabled: false
+        endpoint: {{ .Release.Namespace }}-minio.{{ .Release.Namespace }}.svc:9000
+        bucket_name: enterprise-traces-admin
+        access_key_id: enterprise-traces
+        secret_access_key: supersecret
+        insecure: true
+  multitenancy_enabled: true
+  admin_api:
+    leader_election:
+      enabled: false
   search_enabled: {{.Values.search.enabled}}
   compactor:
     compaction:
@@ -107,6 +99,22 @@ config: |
     ring:
       kvstore:
         store: memberlist
+  gateway:
+    proxy:
+      default:
+        url: http://{{ .Release.Name }}-enterprise-traces-admin-api.{{ .Release.Namespace }}.svc:3100
+      admin_api:
+        url: http://{{ .Release.Name }}-enterprise-traces-admin-api.{{ .Release.Namespace }}.svc:3100
+      compactor:
+        url: http://{{ .Release.Name }}-enterprise-traces-compactor.{{ .Release.Namespace }}.svc:3100
+      distributor:
+        url: h2c://{{ .Release.Name }}-enterprise-traces-distributor.{{ .Release.Namespace }}.svc:4317
+      ingester:
+        url: http://{{ .Release.Name }}-enterprise-traces-ingester.{{ .Release.Namespace }}.svc:3100
+      querier:
+        url: http://{{ .Release.Name }}-enterprise-traces-querier.{{ .Release.Namespace }}.svc:3100
+      query_frontend:
+        url: http://{{ .Release.Name }}-enterprise-traces-query-frontend.{{ .Release.Namespace }}.svc:3100      
   distributor:
     ring:
       kvstore:
@@ -268,8 +276,19 @@ tempo-distributed:
 
   gateway:
     enabled: false
+  server: *server
+  storage: *storage
+  config: *config
+  ingester:
+    extraVolumes:
+      - name: license
+        secret:
+          secretName: enterprise-traces-license
+    extraVolumeMounts:
+      - name: license
+        mountPath: /etc/enterprise-traces/license
 
-  ingester: &extras
+  distributor: &extras
     extraVolumes:
       - name: license
         secret:
@@ -282,11 +301,19 @@ tempo-distributed:
       - name: storage
         mountPath: /var/tempo
 
-  distributor: *extras
+  traces:
+    otlp:
+      http:
+        enabled: true
+      grpc:
+        enabled: true
 
   querier: *extras
 
-  queryFrontend: *extras
+  queryFrontend:
+    <<: *extras
+    query:
+      enabled: false
 
   compactor: *extras
 
