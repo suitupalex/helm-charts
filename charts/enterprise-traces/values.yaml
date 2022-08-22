@@ -26,7 +26,7 @@ storage: &storage
     s3:
       # CHANGE lab-get TO YOUR NAMESPACE IN THE LINE BELOW
       endpoint: lab-get-minio.lab-get.svc:9000
-      bucket: enterprise-traces-admin
+      bucket: enterprise-traces-data
       access_key: enterprise-traces
       secret_key: supersecret
       insecure: true
